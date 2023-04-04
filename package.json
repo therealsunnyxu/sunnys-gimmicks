@@ -1,0 +1,15 @@
+{
+  "name": "sunnys-gimmicks",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/therealsunnyxu/sunnys-gimmicks"
+  },
+  "author": "Sunny Xu (therealsunnyxu)",
+  "license": "ISC"
+}
