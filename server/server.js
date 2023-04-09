@@ -10,8 +10,9 @@ const app = express()
 app.use(express.json())
 app.use(cors())
 
-connectDB(() => {
+connectDB.setStartBehavior(() => {
     app.listen(PORT, ()=>{
         console.log('Started server at port', PORT)
     })
 })
+connectDB.connectToDB()

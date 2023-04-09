@@ -4,7 +4,7 @@ const nodeMocksHTTP = require('node-mocks-http')
 
 describe("UserController sign up", () => {
     beforeAll(() => {
-        connectDB(() => {})
+        connectDB.connectToDB()
     })
     test('bad case: blank signup should cause BLANK_FIELDS', async () => {
         const reqBody = {
@@ -168,6 +168,10 @@ describe("UserController log in", () => {
         }
         await setTestCase(reqBody, "LOG_IN_SUCCESS", userController.logIn)
         await setTestCase(reqBody, "LOG_OUT_SUCCESS", userController.logOut)
+    })
+
+    afterAll(() => {
+        connectDB.closeConnectionFromDB()
     })
 })
 
