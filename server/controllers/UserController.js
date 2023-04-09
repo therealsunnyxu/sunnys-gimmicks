@@ -1,8 +1,10 @@
+require('dotenv').config()
 const userModel = require('../models/UserModel')
 const bcrypt = require('bcrypt')
 const jsonWebToken = require('jsonwebtoken')
 //const nodeMailer = require('nodemailer')
 const nodeFetch = require('node-fetch')
+const emailValidator = require('email-validator')
 
 /**
  * controller userController
@@ -22,39 +24,55 @@ const userController = {
                 password, 
                 confirmPassword
             } = req.body
-            if (!username || !password || !confirmPassword) return res.status(400).json({
-                msg: "Fill in all required fields!"
+            if (!username || !email || !password || !confirmPassword) return res.status(400).json({
+                msg: "Fill in all required fields!",
+                code: "BLANK_FIELDS"
             })
             // validate username meets character conventions
-            if (isUsernameValid(username) == false) return res.status(406).json({
-                msg: "Username can only contain upper and lowercase letters from A-Z, and the following special characters: -_.@"
+            if (isUsernameValid(username) == false) return res.status(400).json({
+                msg: "Username can only contain upper and lowercase letters from A-Z, and the following special characters: -_.@",
+                code: "BAD_CHARACTERS"
             })
             
             // find username availability
             const user = await userModel.findOne({username: req.body.username}).exec()
-            if (user) return res.status(403).json({
-                msg: "Username already taken! Choose another one."
+            if (user) return res.status(400).json({
+                msg: "Username already taken! Choose another one.",
+                code: "USER_ALREADY_EXISTS"
             })
 
             // if email is supplied, check if the email meets character convention
-            if (email) {
-                console.log("i know everything muahaha")
-            } 
+            // TBD: work on username and password first
+            if (!emailValidator.validate(email)) return res.status(400).json({
+                msg: "E-mail contains invalid characters!",
+                code: "BAD_EMAIL"
+            })
 
             // validate password meets character conventions
             if (password.length < 8) return res.status(400).json({
-                msg: "Password must contain at least 8 characters!"
+                msg: "Password must contain at least 8 characters!",
+                code: "PW_TOO_SHORT"
             })
 
-            if (password.localeCompare(confirmPassword) != 0) return res.status(406).json({
-                msg: "Password and confirm password fields do not match!"
+            if (password.localeCompare(confirmPassword) != 0) return res.status(400).json({
+                msg: "Password and confirm password fields do not match!",
+                code: "PW_MISMATCH"
             })
 
             // insert username and password into database
-            
+            const newHash = await bcrypt.hash(password, Number(process.env.SALT_ROUNDS))
+            const newUser = new userModel({
+                username,
+                email,
+                password: newHash
+            })
 
-            return res.status(200).json({msg: "Nice"})
-            // return res.status(200).json({msg: "Signed up!"})
+            await newUser.save()
+
+            return res.status(200).json({
+                msg: "Signed up!", 
+                code: "SIGN_UP_SUCCESS"
+            })
         } catch(err) {
             console.log(err)
             return res.status(500).json({msg: err.message})
@@ -74,22 +92,44 @@ const userController = {
             // TBD: add option to login via email
             
             if (!username || !password) return res.status(401).json({
-                msg: "Username or password fields are empty!"
+                msg: "Username or password fields are empty!",
+                code: "BLANK_FIELDS"
             })
-            const user = await userController.findOne({username})
+            const user = await userModel.findOne({username: req.body.username}).exec()
             if (!user) return res.status(400).json({
-                msg: "User not registered!"
+                msg: "User not registered!",
+                code: "USER_DOES_NOT_EXIST"
             })
             
-            const validPassword = await bcrypt.compareSync(password, userController.get("password"))
+            const validPassword = await bcrypt.compare(req.body.password, user.password)
             if (!validPassword) return res.status(403).json({
-                msg: "Wrong password!"
+                msg: "Wrong password!",
+                code: "WRONG_PASSWORD"
             })
 
             // do cookie stuff to keep the user logged in
-            return res.status(200).json({msg: "Logged in!"})
+            const loginCookie = bakeCookie(
+                res,
+                { userName: req.body.username },
+                'refresh_cookie',
+                900
+            )
+
+            if (!loginCookie) {
+                return res.status(500).json({
+                    code: "COOKIE_ERROR"
+                })
+            }
+
+            return res.status(200).json({
+                msg: "Logged in!",
+                code: "LOG_IN_SUCCESS"
+            })
         } catch(err) {
-            return res.status(500).json({msg: err.message})
+            console.log(err.message)
+            return res.status(500).json({
+                msg: err.message
+            })
         }
     },
     /*
@@ -101,7 +141,16 @@ const userController = {
         const {} = req.body
         try {
             // do thing to destroy the login cookie
-            return res.status(200).json({msg: "Logged out!"})
+            res.clearCookie(
+                'refresh_cookie', 
+                {
+                    path: '/'
+                }
+            )
+            return res.status(200).json({
+                msg: "Logged out!", 
+                code: "LOG_OUT_SUCCESS"
+            })
         } catch(err) {
             return res.status(500).json({msg: err.message})
         }
@@ -118,5 +167,32 @@ function isUsernameValid(username) {
     return (invalidRegex.test(username) == false)
 }
 
+/*
+ * @description bakeCookie: use JWT to make a token
+ * @param {num} expireTime: expiry time of cookie in seconds
+ * @param {String} cookieName
+ * @return unbaked cookie, aka just the JSO for it
+*/
+function bakeCookie(res, payload, cookieName, expireTime, cookiePath) {
+    var mCookiePath = cookiePath || "/"
+    var jwtExpireTime = String(expireTime) + "s"
+    const newToken = jsonWebToken.sign(
+        payload,
+        process.env.TOKEN,
+        {
+            expiresIn: jwtExpireTime
+        }
+    )
+
+    return res.cookie(
+        cookieName, 
+        newToken,
+        {
+            httpOnly: true,
+            path: mCookiePath,
+            maxAge: expireTime
+        }
+    )
+}
 
 module.exports = userController
