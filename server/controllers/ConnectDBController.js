@@ -1,18 +1,22 @@
 require('dotenv').config()
 const mongoose = require('mongoose')
-const options = {}
+const options = {
+    authSource: "admin",
+    user: process.env.MONGODB_USER,
+    pass: process.env.MONGODB_PWD
+}
 const CONNECTION_URL = process.env.MONGODB_URL
 const connectDB = {
     startBehavior: () => {},
     setStartBehavior: (behavior) => {
-        startBehavior = behavior
+        this.startBehavior = behavior
     },
     connectToDB: async () => {
         try {
             console.log("Connecting to database...")
             await mongoose.connect(CONNECTION_URL, options)
             console.log("Connected to database!")
-            if (this.startBehavior) startBehavior()
+            if (this.startBehavior) this.startBehavior()
             
         } catch (error) {
             console.log("Cannot connect to database!", error)
