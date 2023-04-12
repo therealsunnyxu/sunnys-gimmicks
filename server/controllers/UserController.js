@@ -3,7 +3,6 @@ const userModel = require('../models/UserModel')
 const bcrypt = require('bcrypt')
 const jsonWebToken = require('jsonwebtoken')
 //const nodeMailer = require('nodemailer')
-const nodeFetch = require('node-fetch')
 const emailValidator = require('email-validator')
 
 /**
@@ -108,6 +107,7 @@ const userController = {
             })
 
             // do cookie stuff to keep the user logged in
+            /*
             const loginCookie = bakeCookie(
                 res,
                 { userName: req.body.username },
@@ -118,6 +118,20 @@ const userController = {
             if (!loginCookie) {
                 return res.status(500).json({
                     code: "COOKIE_ERROR"
+                })
+            }
+            */
+            const session = req.session
+            session.username = user.username
+            
+            if (!session) {
+                return res.status(500).json({
+                    code: "SESSION_GET_ERROR"
+                })
+            }
+            if (!session.username || session.username != user.username) {
+                return res.status(500).json({
+                    code: "SESSION_MODIFY_ERROR"
                 })
             }
 
@@ -141,12 +155,15 @@ const userController = {
         const {} = req.body
         try {
             // do thing to destroy the login cookie
+            /*
             res.clearCookie(
                 'refresh_cookie', 
                 {
                     path: '/'
                 }
             )
+            */
+            req.session.destroy()
             return res.status(200).json({
                 msg: "Logged out!", 
                 code: "LOG_OUT_SUCCESS"

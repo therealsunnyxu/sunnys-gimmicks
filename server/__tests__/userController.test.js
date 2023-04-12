@@ -182,6 +182,14 @@ async function setTestCase(reqBody, codeWord, testFunction) {
             email: reqBody.email,
             password: reqBody.password,
             confirmPassword: reqBody.confirmPassword
+        },
+        session: {
+            // mocking a session for unit testing only
+            // this is not representative of how the app will actually work
+            username: "",
+            destroy: () => {
+                this.username = ""
+            }
         }
     })
 
@@ -189,7 +197,9 @@ async function setTestCase(reqBody, codeWord, testFunction) {
 
     await testFunction(request, response)
     const finalResponse = JSON.parse(response._getData())
+    if (finalResponse.msg) console.log(finalResponse.msg)
     expect(finalResponse.code).toBe(codeWord)
+    
 }
 
 function generateRandomUsername(numChars) {

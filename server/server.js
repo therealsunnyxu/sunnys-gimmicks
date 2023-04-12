@@ -9,6 +9,8 @@ const PORT = process.env.PORT || 5000
 const app = express()
 app.use(express.json())
 app.use(cors())
+app.use(cookieParser())
+// do that app.use stuff with session
 
 connectDB.setStartBehavior(() => {
     app.listen(PORT, ()=>{
